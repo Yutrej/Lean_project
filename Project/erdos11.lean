@@ -143,6 +143,85 @@ lemma W_primes_ord2_relation (hp_W : p ∈ W) : ord2 (p^2) = ord2 (p) := by
     omega
 
 
+def P (r : ℕ) : Set ℕ :=
+  {p | (p ∉ W) ∧ (ord2 p = r)}
+
+/- We first show that such set is finite so that we may
+  write it as a ascending list p₁ < ⋯ < pₘ. -/
+lemma P_r_is_finite (r : ℕ) (hr : r ≥ 1) : (P r).Finite := by
+  sorry
+
+noncomputable def P_list (r : ℕ) (h_Pfin : (P r).Finite) : List ℕ :=
+  h_Pfin.toFinset.sort (· ≤ ·)
+
+/-
+  For each `pⱼ` in P_r, we have `ord2 (pⱼ^2) = pr` and `ord2 pⱼ = r`.
+  Then `2^r ≡ 1 mod pⱼ`, and `2^{pⱼ-1} ≡ 1 mod pⱼ` by Fermat's little thm.
+  Thus, we have `r ∣ pⱼ-1` i.e. `pⱼ ≡ 1 mod r`.
+  Hence `pⱼ ≥ jr+1`.
+-/
+lemma lowerBound_of_p_in_P_r (r : ℕ) (hr : r ≥ 1) (h_Pfin : (P r).Finite) :
+  ∀ (j : ℕ) (hj : j < (P_list r h_Pfin).length),
+    (P_list r h_Pfin).get ⟨j, hj⟩ ≥ (j+1)*r + 1  -- `j` starts from 0
+    := by
+  sorry
+
+/-
+  Since `pⱼ ∣ 2^r - 1` for each j and `pⱼ` are distinct primes, they
+  are distinct prime factors of `2^r - 1`.
+  Using FTA, we see `∏ pⱼ ≤ 2^r - 1 < 2^r`.
+-/
+lemma upperBound_of_prod_in_P_r (r : ℕ) (hr : r ≥ 1) (h_Pfin : (P r).Finite) :
+    (P_list r h_Pfin).prod < 2^r := by
+  sorry
+
+/-
+  Combining the above two bounds, we get `∏ (jr+1) < 2^r`.
+  Ignoring the 1, it follows that `rᵐm! < 2^r`.
+  Taking logrithm, we have `m < {r · log 2}/{log r}` for `r > 1`.
+  And for `r = 1`, the set `P r` is empty hence `m = 0`.
+-/
+lemma upperBound_of_m_by_r (r : ℕ) (hr : r > 1) (h_Pfin : (P r).Finite) :
+    (P_list r h_Pfin).length < (r * Real.log 2) / (Real.log r) := by
+  sorry
+
+/-
+  The contribution to the series can be divided into each `P r`, that is
+    `∑_{p ∉ W} {1 / ord2 (p^2)} = ∑_{r ≥ 2} { ∑_{p ∈ P r} {1 / ord2 (p^2)} }`.
+-/
+lemma divideContribution_into_r :
+    ∑' (p : {p // p.Prime ∧ p > 2 ∧ p ∉ W}), (1 : ℝ) / (ord2 (p ^ 2)) =
+    ∑' (r : ℕ), ∑' (p : {p // p ∈ P r}), (1 : ℝ) / (ord2 (p ^ 2))
+    := by
+  sorry
+
+
+-- The n-th harmonic number
+def H (n : ℕ) : ℚ :=
+  ∑ i ∈ Finset.range n, (1 / (i + 1) : ℚ)
+
+/-
+  For each contribution, we have
+    `∑_{p ∈ P r} {1 / ord2 (p^2)} = ∑_{p ∈ P r} {1 / pr} ≤ ∑ {1 / (jr+1)r}`
+  using the __lowerBound_of_p_in_P_r__.
+  Ignoring the 1, we get `∑_{p ∈ P r} {1 / ord2 (p^2)} ≤ 1/r² H m`.
+  Then, apply __upperBound_of_m_by_r__, we get
+    `∑_{p ∈ P r} {1 / ord2 (p^2)} ≤ 1/r² H ⌊{r · log 2}/{log r}⌋`.
+-/
+lemma upperBound_of_each_contribution (r : ℕ) (hr : r > 1) (h_Pfin : (P r).Finite) :
+    ∑ p ∈ h_Pfin.toFinset, (1 : ℝ) / (ord2 (p^2))
+    ≤ (1 : ℝ)/(r^2) * H (Nat.floor ((r * Real.log 2)/(Real.log r))) := by
+  sorry
+
+/-
+  Now, using __divideContribution_into_r__, we have that
+    `∑_{p ∉ W} {1 / ord2 (p^2)} ≤ ∑ {1/r² H ⌊{r · log 2}/{log r}⌋}`.
+-/
+lemma upperBound_integrate_all_contributions :
+    ∑' (p : {p // p.Prime ∧ p > 2 ∧ p ∉ W}), (1 : ℝ) / (ord2 (p ^ 2))
+    ≤ ∑' (r : ℕ), (1 : ℝ)/(r^2) * H (Nat.floor ((r * Real.log 2)/(Real.log r))) := by
+  sorry
+
 
 -- theorem ReciprocalOrderSeries_of_nonW_primes_converges :
 --     Summable ( fun (p : {p // p.Prime ∧ p > 2 ∧ p ∉ W}) => (1 : ℝ) / (ord2 (p^2)) ) := by
