@@ -649,14 +649,95 @@ lemma upperBound_of_each_contribution (r : ℕ) (hr : r > 1) (h_Pfin : (P r).Fin
         nlinarith
       exact h₃
 
-/-
-  Now, using __divideContribution_into_r__, we have that
-    `∑_{p ∉ W} {1 / ord2 (p^2)} ≤ ∑ {1/r² H ⌊{r · log 2}/{log r}⌋}`.
--/
+lemma h_P_0_empty : P 0 = ∅ := by
+  ext p
+  simp only [P, Set.mem_empty_iff_false, iff_false]
+  intro h_prime
+  have h1 : Nat.Prime p ∧ p > 2 ∧ p ∉ W ∧ ord2 p = 0 := by
+    simpa [Set.mem_setOf_eq] using h_prime
+  have h_ord_eq : ord2 p = 0 := h1.2.2.2
+  have h_div : ord2 p ∣ p - 1 := ord2_p_div_p_minus_1 ⟨h1.1, h1.2.1⟩
+  rw [h_ord_eq, zero_dvd_iff] at h_div
+  omega
+
+lemma h_P_1_empty : P 1 = ∅ := by
+  ext p
+  simp only [P, Set.mem_empty_iff_false, iff_false]
+  intro h_prime
+  have h1 : Nat.Prime p ∧ p > 2 ∧ p ∉ W ∧ ord2 p = 1 := by
+    simpa [Set.mem_setOf_eq] using h_prime
+  have h_ord_eq : ord2 p = 1 := h1.2.2.2
+  have h_dvd : p ∣ 2^1 - 1 := dvd_of_ord2_eq p 1 h_ord_eq
+  have h_pos : 0 < 2^1 - 1 := by norm_num
+  have h_le : p ≤ 2^1 - 1 := Nat.le_of_dvd h_pos h_dvd
+  have hp2 : p > 2 := h1.2.1
+  omega
+
 lemma upperBound_integrate_all_contributions :
     ∑' (p : {p // p.Prime ∧ p > 2 ∧ p ∉ W}), (1 : ℝ) / (ord2 (p ^ 2))
     ≤ ∑' (r : ℕ), (1 : ℝ)/(r^2) * H (Nat.floor ((r * Real.log 2)/(Real.log r))) := by
-  sorry
+    -- for any r in ℕ    ∑' p ∈ P r  1/ord2(p ^ 2) ≤ 1/r² H ⌊{r · log 2}/{log r}⌋
+    -- we prove this by r = 0, r = 1, r > 1
+    have h_each : ∀ (r : ℕ),
+      (∑' (p : {p // p ∈ P r}), (1 : ℝ) / (ord2 (p ^ 2)))
+      ≤ (1 : ℝ)/(r^2) * H (Nat.floor ((r * Real.log 2)/(Real.log r))) := by
+      intro r
+      by_cases h0 : r = 0
+      · rw [h0]
+        have h1 : P 0 = ∅ := h_P_0_empty
+        have h2 : (∑' (p : {p // p ∈ P 0}), (1 : ℝ) / (ord2 (p ^ 2))) = 0 := by
+          rw [h1]
+          simp
+        rw [h2]
+        norm_num
+      by_cases h1 : r = 1
+      · rw [h1]
+        have h2 : P 1 = ∅ := h_P_1_empty
+        have h3 : (∑' (p : {p // p ∈ P 1}), (1 : ℝ) / (ord2 (p ^ 2))) = 0 := by
+          rw [h2]
+          simp
+        rw [h3]
+        rw[H]
+        norm_num
+      by_cases h2 : r > 1
+      · have hr_ge : r ≥ 1 := by omega
+        have h_Pfin : (P r).Finite := P_r_is_finite r hr_ge
+        have h4 : (∑' (p : {p // p ∈ P r}), (1 : ℝ) / (ord2 (p ^ 2)))
+          = ∑ p ∈ h_Pfin.toFinset, (1 : ℝ) / (ord2 (p ^ 2)) := by
+          have h_tsum : (∑' (p : {p // p ∈ P r}), (1 : ℝ) / (ord2 (p ^ 2))) =
+          ∑' (p : ℕ), Set.indicator (P r) (fun p ↦ (1 : ℝ) / (ord2 (p ^ 2))) p := by
+            simpa [Set.indicator] using tsum_subtype (P r) (fun p ↦ (1 : ℝ) / (ord2 (p ^ 2)))
+          rw [h_tsum]
+          trans ∑ p ∈ h_Pfin.toFinset, Set.indicator (P r) (fun p ↦ (1 : ℝ) / (ord2 (p ^ 2))) p
+          · apply tsum_eq_sum
+            intro p hp
+            have : p ∉ P r := by simpa using hp
+            simp [Set.indicator, this]
+          · apply Finset.sum_congr rfl
+            intro p hp
+            have : p ∈ P r := by simpa using hp
+            simp [Set.indicator, this]
+        rw [h4]
+        exact upperBound_of_each_contribution r h2 h_Pfin
+      · omega  -- cases r ≠ 0 r ≠ 1  ¬ r > 1   which is impossible
+      -- by now ∑' p ∈ P r  1/ord2(p ^ 2) ≤ 1/r² H ⌊{r · log 2}/{log r}⌋
+      -- for any fixed r   and the left right parts are both positive
+      -- we sum them and it will still true for those r
+    have h_tsum_le : (∑' (r : ℕ), ∑' (p : {p // p ∈ P r}), (1 : ℝ) / (ord2 (p ^ 2)))
+    ≤ ∑' (r : ℕ), (1 : ℝ)/(r^2) * H (Nat.floor ((r * Real.log 2)/(Real.log r))) := by
+      let a : ℕ → ℝ := fun r ↦ ∑' (p : {p // p ∈ P r}), (1 : ℝ) / (ord2 (p ^ 2))
+      let b : ℕ → ℝ := fun r ↦ (1 : ℝ)/(r^2) * H (Nat.floor ((r * Real.log 2)/(Real.log r)))
+      have h_nonneg_a : ∀ (r : ℕ), 0 ≤ a r := by
+        intro r
+        simp only [a]
+        apply tsum_nonneg
+        intro p
+        positivity
+      have h_le : ∀ (r : ℕ), a r ≤ b r := h_each
+      have h_main : (∑' (r : ℕ), a r) ≤ (∑' (r : ℕ), b r) := by sorry
+      simpa only [a, b] using h_main
+    rw [divideContribution_into_r]
+    exact h_tsum_le
 
 
 -- theorem ReciprocalOrderSeries_of_nonW_primes_converges :
