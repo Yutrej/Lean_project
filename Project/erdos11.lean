@@ -9,13 +9,12 @@ import Mathlib.GroupTheory.OrderOfElement
 import Mathlib.Data.Real.Basic
 import Mathlib.Data.Real.Basic
 import Mathlib.Algebra.BigOperators.Finsupp.Basic
-import Mathlib.Topology.Algebra.InfiniteSum.Order
-import Mathlib.Analysis.PSeries
+
+open BigOperators
 
 section Need_hp
 -- `p` refers an odd prime
 variable {p : ℕ} (hp : p.Prime ∧ p > 2)
-
 include hp
 -- `p` is a Wieferich prime if `p` is a prime and `p² ∣ 2^{p-1} - 1`
 def W : Set ℕ :=
@@ -487,349 +486,6 @@ lemma upperBound_of_m_by_r (r : ℕ) (hr : r > 1) (h_Pfin : (P r).Finite) :
     exact (lt_div_iff₀ h_log_r_pos).mpr h_log_lt
   simpa [m]
 
--- Change to an easy bound `m < r`
-lemma upperBound_of_m_by_r_simp (r : ℕ) (hr : r > 1) (h_Pfin : (P r).Finite) :
-    (P_list r h_Pfin).length < r := by
-  let L := P_list r h_Pfin
-  let m := L.length
-  have h_m_lt : (m : ℝ) < (r * Real.log 2) / (Real.log r) :=
-    upperBound_of_m_by_r r hr h_Pfin
-  have h_m_le : (m : ℝ) < r := by
-    calc (m : ℝ)
-      _ < (r * Real.log 2) / (Real.log r) := h_m_lt
-      _ = r * (Real.log 2 / Real.log r) := by ring
-      _ ≤ r * 1 := by
-        apply mul_le_mul_of_nonneg_left
-        · have h_log_pos : 0 < Real.log r := Real.log_pos (by exact_mod_cast hr)
-          rw [div_le_iff₀ h_log_pos, one_mul]
-          have hr2 : 2 ≤ r := by omega
-          exact Real.log_le_log (by norm_num) (by exact_mod_cast hr2)
-        · positivity
-      _ = r := mul_one (r : ℝ)
-  exact_mod_cast h_m_le
-
--- The n-th harmonic number
-def H (n : ℕ) : ℝ :=
-  ∑ i ∈ Finset.range n, (1 / (i + 1) : ℚ)
-
-lemma upperBound_of_H_n (n : ℕ) : H n ≤ 2 * Real.sqrt n := by
-  -- Do induction on `n`.
-  have h_all : ∀ m : ℕ, (H m : ℝ) ≤ 2 * Real.sqrt m := by
-    intro m
-    induction m with
-    | zero =>
-      simp [H]
-    | succ k ih =>
-      have h_sum_succ : (H (k + 1) : ℝ) = (H k : ℝ) + 1 / (k + 1 : ℝ) := by
-        simp only [H, Finset.sum_range_succ]
-        push_cast
-        rfl
-      rw [h_sum_succ]
-      push_cast
-      have hk : 0 ≤ (k : ℝ) := Nat.cast_nonneg k
-      have hk1 : 0 < (k : ℝ) + 1 := by positivity
-      have h_ineq : Real.sqrt ((k : ℝ) + 1) + Real.sqrt (k : ℝ) ≤ 2 * ((k : ℝ) + 1) := by
-          calc Real.sqrt ((k : ℝ) + 1) + Real.sqrt (k : ℝ)
-            _ ≤ Real.sqrt ((k : ℝ) + 1) + Real.sqrt ((k : ℝ) + 1) := by
-              have h_le : (k : ℝ) ≤ (k : ℝ) + 1 := by linarith
-              have h_sqrt_le : Real.sqrt (k : ℝ) ≤ Real.sqrt ((k : ℝ) + 1) := Real.sqrt_le_sqrt h_le
-              linarith
-            _ = 2 * Real.sqrt ((k : ℝ) + 1) := by ring
-            _ ≤ 2 * ((k : ℝ) + 1) := by
-              have h_sqrt_le_self : Real.sqrt ((k : ℝ) + 1) ≤ (k : ℝ) + 1 := by
-                rw [Real.sqrt_le_iff]
-                refine ⟨by positivity, ?_⟩
-                calc (k : ℝ) + 1 = ((k : ℝ) + 1) * 1 := by ring
-                  _ ≤ ((k : ℝ) + 1) * ((k : ℝ) + 1) := by
-                    have h_one_le : 1 ≤ (k : ℝ) + 1 := by linarith
-                    nlinarith
-                  _ = ((k : ℝ) + 1) ^ 2 := by ring
-              linarith
-      have h_diff : (Real.sqrt ((k:ℝ)+1)-Real.sqrt (k:ℝ))*(Real.sqrt ((k:ℝ)+1)+Real.sqrt (k:ℝ))
-          = 1 := by
-        calc (Real.sqrt ((k : ℝ)+1) - Real.sqrt (k : ℝ))*(Real.sqrt ((k : ℝ)+1) + Real.sqrt (k : ℝ))
-          _ = Real.sqrt ((k : ℝ) + 1) ^ 2 - Real.sqrt (k : ℝ) ^ 2 := by ring
-          _ = ((k : ℝ) + 1) - (k : ℝ) := by
-            rw [Real.sq_sqrt (by positivity), Real.sq_sqrt hk]
-          _ = 1 := by ring
-      have h_final : (1 : ℝ)
-          ≤ (2 * Real.sqrt ((k : ℝ) + 1) - 2 * Real.sqrt (k : ℝ)) * ((k : ℝ) + 1) := by
-        calc
-          (1 : ℝ) = (Real.sqrt ((k : ℝ) + 1) - Real.sqrt (k : ℝ))
-          * (Real.sqrt ((k : ℝ) + 1) + Real.sqrt (k : ℝ)) := h_diff.symm
-          _ ≤ (Real.sqrt ((k : ℝ) + 1) - Real.sqrt (k : ℝ)) * (2 * ((k : ℝ) + 1)) := by
-            have h_pos_diff : 0 ≤ Real.sqrt ((k : ℝ) + 1) - Real.sqrt (k : ℝ) := by
-              rw [sub_nonneg]
-              exact Real.sqrt_le_sqrt (by linarith)
-            -- Multiply h_ineq by the non-negative difference
-            exact mul_le_mul_of_nonneg_left h_ineq h_pos_diff
-          _ = (2 * Real.sqrt ((k : ℝ) + 1) - 2 * Real.sqrt (k : ℝ)) * ((k : ℝ) + 1) := by ring
-      have h_step : (1 : ℝ) / (k + 1 : ℝ) ≤ 2 * Real.sqrt (k + 1) - 2 * Real.sqrt k := by
-        rw [div_le_iff₀ hk1]
-        exact h_final
-      calc
-        (H k : ℝ) + 1 / (k + 1 : ℝ)
-          ≤ 2 * Real.sqrt k + 1 / (k + 1 : ℝ) := by linarith
-        _ ≤ 2 * Real.sqrt k + (2 * Real.sqrt (k + 1 : ℝ) - 2 * Real.sqrt k) := by linarith
-        _ = 2 * Real.sqrt (k + 1 : ℝ) := by ring
-  exact h_all n
-
-/-
-  `∑ 1/r² H r < ∑ 1/r² 2√r = 2 ∑ r^{-1.5} < ∞`
--/
-lemma upperBound_is_convergent : Summable ( fun r : ℕ ↦ (1 : ℝ)/(r^2) * (H r) ) := by
-  let g : ℕ → ℝ := fun r ↦ 2 * (r : ℝ) ^ (-(3 / 2) : ℝ)
-  have h_nonneg : ∀ r, 0 ≤ (1 : ℝ) / r^2 * H r := by
-    intro r
-    have h_H_nonneg : (0 : ℝ) ≤ H r := by
-      unfold H
-      push_cast
-      apply Finset.sum_nonneg
-      intro i _
-      positivity
-    apply mul_nonneg
-    · positivity
-    · exact h_H_nonneg
-  have h_bound : ∀ r, (1 : ℝ) / r^2 * H r ≤ g r := by
-    intro r
-    by_cases hr : r = 0
-    · subst hr
-      unfold H g
-      simp
-    · have hr_pos : 0 < r := Nat.pos_of_ne_zero hr
-      have hr_pos_real : (0 : ℝ) < r := Nat.cast_pos.mpr hr_pos
-      calc (1 : ℝ) / (r : ℝ)^2 * H r
-        _ ≤ (1 : ℝ) / (r : ℝ)^2 * (2 * Real.sqrt r) := by
-          apply mul_le_mul_of_nonneg_left
-          · exact upperBound_of_H_n r
-          · positivity
-        _ = g r := by
-          unfold g
-          have hr2 : (r : ℝ)^2 = (r : ℝ) ^ (2 : ℝ) := by
-            exact (Real.rpow_two r).symm
-          have h_inv : (1 : ℝ) / (r : ℝ) ^ (2 : ℝ) = (r : ℝ) ^ (-(2 : ℝ)) := by
-            rw [one_div, ← Real.rpow_neg hr_pos_real.le]
-          rw [hr2, h_inv, Real.sqrt_eq_rpow]
-          calc (r : ℝ) ^ (-(2 : ℝ)) * (2 * (r : ℝ) ^ (1 / 2 : ℝ))
-            _ = 2 * ((r : ℝ) ^ (-(2 : ℝ)) * (r : ℝ) ^ (1 / 2 : ℝ)) := by ring
-            _ = 2 * (r : ℝ) ^ (-(2 : ℝ) + 1 / 2) := by
-              rw [← Real.rpow_add hr_pos_real]
-            _ = 2 * (r : ℝ) ^ (-(3 / 2) : ℝ) := by
-              congr 2
-              norm_num
-  have h_g_summable : Summable g := by
-    unfold g
-    apply Summable.mul_left
-    have h_p : (-(3/2) : ℝ) < -1 := by norm_num
-    exact Real.summable_nat_rpow.mpr h_p
-  -- By comparison
-  exact Summable.of_nonneg_of_le h_nonneg h_bound h_g_summable
-
-/-
-  For each contribution, we have
-    `∑_{p ∈ P r} {1 / ord2 (p^2)} = ∑_{p ∈ P r} {1 / pr} ≤ ∑ {1 / (jr+1)r}`
-  using the __lowerBound_of_p_in_P_r__.
-  Ignoring the 1, we get `∑_{p ∈ P r} {1 / ord2 (p^2)} ≤ 1/r² H m`.
-  Then, apply __upperBound_of_m_by_r_simp__, we get
-    `∑_{p ∈ P r} {1 / ord2 (p^2)} ≤ 1/r² H r`.
--/
-lemma upperBound_of_each_contribution (r : ℕ) (hr : r > 1) (h_Pfin : (P r).Finite) :
-    ∑ p ∈ h_Pfin.toFinset, (1 : ℝ) / (ord2 (p^2)) ≤ (1 : ℝ)/(r^2) * (H r) := by
-  let s := h_Pfin.toFinset
-  let L := P_list r h_Pfin
-  let m := L.length
-  have hL_toFinset : L.toFinset = s := by simp [L, P_list, s]
-  have hL_nodup : L.Nodup := by simp [L, P_list]
-  -- `H` is strictly increasing
-  have h_H_mono : ∀ (a b : ℕ), a ≤ b → (H a : ℝ) ≤ (H b : ℝ) := by
-    intro a b hab
-    have h₁ : Finset.range a ⊆ Finset.range b := Finset.range_subset_range.mpr hab
-    have h₂ : ∀ i ∈ Finset.range b, (i ∉ Finset.range a) → 0 ≤ (1 : ℝ) / ((i : ℝ) + 1) := by
-      intro i _ _
-      have h_pos : (0 : ℝ) < (i : ℝ) + 1 := by positivity
-      exact one_div_nonneg.mpr (by linarith)
-    have h_H_cast_a : (H a : ℝ) = ∑ i ∈ Finset.range a, (1 : ℝ) / ((i : ℝ) + 1) := by
-      unfold H; push_cast; rfl
-    have h_H_cast_b : (H b : ℝ) = ∑ i ∈ Finset.range b, (1 : ℝ) / ((i : ℝ) + 1) := by
-      unfold H; push_cast; rfl
-    rw [h_H_cast_a, h_H_cast_b]
-    exact Finset.sum_le_sum_of_subset_of_nonneg h₁ h₂
-  -- `1/(ord2 p²) = 1/(p*r)`
-  have h_pr : ∀ p ∈ s, (1 : ℝ) / (ord2 (p^2)) = (1 : ℝ) / ((p : ℝ) * (r : ℝ)) := by
-    intro p hp
-    have h_p_in_Pr : p ∈ P r := by exact (Set.Finite.mem_toFinset h_Pfin).mp hp
-    have h_notW : p ∉ W := h_p_in_Pr.2.2.1
-    have h_ord_eq : ord2 p = r := h_p_in_Pr.2.2.2
-    have h_prime : p.Prime := h_p_in_Pr.1
-    have h_gt2 : p > 2 := h_p_in_Pr.2.1
-    have h_ord2_p2_eq : ord2 (p^2) = p * ord2 p := nonW_primes_ord2_relation ⟨h_prime, h_gt2⟩ h_notW
-    have h_ord2_p2_eq' : ord2 (p^2) = p * r := by rw [h_ord2_p2_eq, h_ord_eq]
-    have h_cast_mul : ((p * r : ℕ) : ℝ) = (p : ℝ) * (r : ℝ) := by exact Nat.cast_mul p r
-    have h₁ : (ord2 (p^2) : ℝ) = ((p * r : ℕ) : ℝ) := by exact_mod_cast h_ord2_p2_eq'
-    rw [h₁, h_cast_mul]
-  -- Simplify the sum over `s`
-  have h_pr_rw : ∑ p ∈ s, (1 : ℝ) / (ord2 (p^2)) = ∑ p ∈ s, (1 : ℝ) / ((p : ℝ) * (r : ℝ)) := by
-    apply Finset.sum_congr rfl
-    exact h_pr
-  -- Relate the summing term to the list element, so that we may apply `pⱼ < jr+1`
-  have h_list_sum : ∑ p ∈ s, (1 : ℝ) / ((p : ℝ) * (r : ℝ)) =
-      ∑ j ∈ Finset.range m, (if hj : j < m then (1 : ℝ) / ((L.get ⟨j, hj⟩ : ℝ) * (r : ℝ)) else 0)
-      := by
-    symm
-    apply Finset.sum_bij (fun j hj ↦ L.get ⟨j, Finset.mem_range.mp hj⟩)
-    · intro j hj
-      rw [← hL_toFinset]
-      exact List.mem_toFinset.mpr (List.get_mem L ⟨j, Finset.mem_range.mp hj⟩)
-    · intro j₁ hj₁ j₂ hj₂ heq
-      have heq_idx : (⟨j₁, Finset.mem_range.mp hj₁⟩ : Fin L.length)
-          = ⟨j₂, Finset.mem_range.mp hj₂⟩ :=
-        (List.Nodup.get_inj_iff hL_nodup).mp heq
-      injection heq_idx
-    · intro p hp
-      have hp_inL : p ∈ L := by
-        rw [← hL_toFinset] at hp
-        exact List.mem_toFinset.mp hp
-      rcases List.mem_iff_get.mp hp_inL with ⟨⟨j, hj⟩, h_get⟩
-      use j
-      exact ⟨Finset.mem_range.mpr hj, h_get⟩
-    exact fun a ha ↦ dif_pos (Finset.mem_range.mp ha)
-  -- Bound each term by `1 / ((j+1)*r^2)`
-  have h_bound_each : ∀ j ∈ Finset.range m,
-      (if hj : j < m then (1 : ℝ) / ((L.get ⟨j, hj⟩ : ℝ) * (r : ℝ)) else 0)
-      ≤ (1 : ℝ) / (((j + 1 : ℝ) * (r : ℝ)) * (r : ℝ)) := by
-    intro j hj
-    have hj_lt : j < m := Finset.mem_range.mp hj
-    simp only [hj_lt, ↓reduceDIte]
-    let pj := L.get ⟨j, hj_lt⟩
-    have h_lb : pj ≥ (j + 1) * r + 1 := lowerBound_of_p_in_P_r r h_Pfin j hj_lt
-    have h_pos_r : (0 : ℝ) < (r : ℝ) := by exact_mod_cast (by linarith : 0 < r)
-    have : 0 < pj := by exact Nat.zero_lt_of_lt h_lb
-    have h_pos_pj : (0 : ℝ) < (pj : ℝ) := by exact_mod_cast (by linarith : 0 < pj)
-    have h_ineq : ((j + 1 : ℝ) * (r : ℝ)) < (pj : ℝ) := by
-      calc ((j + 1 : ℝ) * (r : ℝ))
-        _ < ((j + 1 : ℝ) * (r : ℝ)) + 1 := by linarith
-        _ ≤ (pj : ℝ) := by exact_mod_cast h_lb
-    have h_denom_ineq : (((j + 1 : ℝ) * (r : ℝ)) * (r : ℝ)) ≤ (pj : ℝ) * (r : ℝ) := by
-      exact mul_le_mul_of_nonneg_right (le_of_lt h_ineq) (le_of_lt h_pos_r)
-    have h_denom1_pos : (0 : ℝ) < (((j + 1 : ℝ) * (r : ℝ)) * (r : ℝ)) := by
-      positivity
-    exact one_div_le_one_div_of_le h_denom1_pos h_denom_ineq
-  -- Extract 1/r^2 from the summation to form H_m
-  have h_simp :
-      ∑ j ∈ Finset.range m, (1 : ℝ) / (((j + 1 : ℝ) * (r : ℝ)) * (r : ℝ))
-      = (1 : ℝ) / r^2 * H m := by
-    calc ∑ j ∈ Finset.range m, (1 : ℝ) / (((j + 1 : ℝ) * (r : ℝ)) * (r : ℝ))
-      _ = ∑ j ∈ Finset.range m, ((1 : ℝ) / r^2) * (1 / (j + 1 : ℝ)) := by
-        apply Finset.sum_congr rfl
-        intro j _
-        have hr_nz : (r : ℝ) ≠ 0 := by positivity
-        have hj_nz : (j + 1 : ℝ) ≠ 0 := by positivity
-        field_simp
-      _ = ((1 : ℝ) / r^2) * ∑ j ∈ Finset.range m, (1 / (j + 1 : ℝ)) := by
-        rw [← Finset.mul_sum]
-      _ = (1 : ℝ) / r^2 * H m := by
-        unfold H
-        push_cast
-        rfl
-  -- `m < r`
-  have h_m_le_r : m < r := by
-    exact upperBound_of_m_by_r_simp r hr h_Pfin
-  -- Final combination using standard arithmetic rules
-  calc ∑ p ∈ s, (1 : ℝ) / (ord2 (p^2))
-    _ = ∑ p ∈ s, (1 : ℝ) / ((p : ℝ) * (r : ℝ)) := h_pr_rw
-    _ = ∑ j ∈ Finset.range m,
-      (if hj : j < m then (1 : ℝ) / ((L.get ⟨j, hj⟩ : ℝ) * (r : ℝ)) else 0) := h_list_sum
-    _ ≤ ∑ j ∈ Finset.range m, (1 : ℝ) / (((j + 1 : ℝ) * (r : ℝ)) * (r : ℝ))
-      := Finset.sum_le_sum h_bound_each
-    _ = (1 : ℝ) / r^2 * H m := h_simp
-    _ ≤ (1 : ℝ) / r^2 * H r := by
-      have h_pos_r2 : 0 ≤ (1 : ℝ) / r^2 := by positivity
-      exact mul_le_mul_of_nonneg_left (h_H_mono m r (le_of_lt h_m_le_r)) h_pos_r2
-
-lemma h_P_0_empty : P 0 = ∅ := by
-  ext p
-  simp only [P, Set.mem_empty_iff_false, iff_false]
-  intro h_prime
-  have h1 : Nat.Prime p ∧ p > 2 ∧ p ∉ W ∧ ord2 p = 0 := by
-    simpa [Set.mem_setOf_eq] using h_prime
-  have h_ord_eq : ord2 p = 0 := h1.2.2.2
-  have h_div : ord2 p ∣ p - 1 := ord2_p_div_p_minus_1 ⟨h1.1, h1.2.1⟩
-  rw [h_ord_eq, zero_dvd_iff] at h_div
-  omega
-
-lemma h_P_1_empty : P 1 = ∅ := by
-  ext p
-  simp only [P, Set.mem_empty_iff_false, iff_false]
-  intro h_prime
-  have h1 : Nat.Prime p ∧ p > 2 ∧ p ∉ W ∧ ord2 p = 1 := by
-    simpa [Set.mem_setOf_eq] using h_prime
-  have h_ord_eq : ord2 p = 1 := h1.2.2.2
-  have h_dvd : p ∣ 2^1 - 1 := dvd_of_ord2_eq p 1 h_ord_eq
-  have h_pos : 0 < 2^1 - 1 := by norm_num
-  have h_le : p ≤ 2^1 - 1 := Nat.le_of_dvd h_pos h_dvd
-  have hp2 : p > 2 := h1.2.1
-  omega
-
-lemma Summable_Ar : Summable ( fun r : ℕ ↦ ∑' (p : {p // p ∈ P r}), (1 : ℝ) / (ord2 (p ^ 2))) := by
-    -- for any r in ℕ    ∑' p ∈ P r  1/ord2(p ^ 2) ≤ 1/r² H r
-    -- we prove this by r = 0, r = 1, r > 1
-    have h_each : ∀ (r : ℕ),
-      (∑' (p : {p // p ∈ P r}), (1 : ℝ) / (ord2 (p ^ 2)))
-      ≤ (1 : ℝ)/(r^2) * (H r) := by
-      intro r
-      by_cases h0 : r = 0
-      · rw [h0]
-        have h1 : P 0 = ∅ := h_P_0_empty
-        have h2 : (∑' (p : {p // p ∈ P 0}), (1 : ℝ) / (ord2 (p ^ 2))) = 0 := by
-          rw [h1]
-          simp
-        rw [h2]
-        norm_num
-      by_cases h1 : r = 1
-      · rw [h1]
-        have h2 : P 1 = ∅ := h_P_1_empty
-        have h3 : (∑' (p : {p // p ∈ P 1}), (1 : ℝ) / (ord2 (p ^ 2))) = 0 := by
-          rw [h2]
-          simp
-        rw [h3]
-        rw[H]
-        norm_num
-      by_cases h2 : r > 1
-      · have hr_ge : r ≥ 1 := by omega
-        have h_Pfin : (P r).Finite := P_r_is_finite r hr_ge
-        have h4 : (∑' (p : {p // p ∈ P r}), (1 : ℝ) / (ord2 (p ^ 2)))
-          = ∑ p ∈ h_Pfin.toFinset, (1 : ℝ) / (ord2 (p ^ 2)) := by
-          have h_tsum : (∑' (p : {p // p ∈ P r}), (1 : ℝ) / (ord2 (p ^ 2))) =
-          ∑' (p : ℕ), Set.indicator (P r) (fun p ↦ (1 : ℝ) / (ord2 (p ^ 2))) p := by
-            simpa [Set.indicator] using tsum_subtype (P r) (fun p ↦ (1 : ℝ) / (ord2 (p ^ 2)))
-          rw [h_tsum]
-          trans ∑ p ∈ h_Pfin.toFinset, Set.indicator (P r) (fun p ↦ (1 : ℝ) / (ord2 (p ^ 2))) p
-          · apply tsum_eq_sum
-            intro p hp
-            have : p ∉ P r := by simpa using hp
-            simp [Set.indicator, this]
-          · apply Finset.sum_congr rfl
-            intro p hp
-            have : p ∈ P r := by simpa using hp
-            simp [Set.indicator, this]
-        rw [h4]
-        exact upperBound_of_each_contribution r h2 h_Pfin
-      · omega  -- cases r ≠ 0 r ≠ 1  ¬ r > 1   which is impossible
-      -- by now ∑' p ∈ P r  1/ord2(p ^ 2) ≤ 1/r² H ⌊{r · log 2}/{log r}⌋
-      -- for any fixed r   and the left right parts are both positive
-      -- we sum them and it will still true for those r   but we need summable a b true
-    let a : ℕ → ℝ := fun r ↦ ∑' (p : {p // p ∈ P r}), (1 : ℝ) / (ord2 (p ^ 2))
-    let b : ℕ → ℝ := fun r ↦ (1 : ℝ)/(r^2) * (H r)
-    have h_nonneg_a : ∀ (r : ℕ), 0 ≤ a r := by
-      intro r
-      simp only [a]
-      apply tsum_nonneg
-      intro p
-      positivity
-    have h_le : ∀ (r : ℕ), a r ≤ b r := h_each
-    have h_sum_b' : Summable b := upperBound_is_convergent
-    have h_sum_a : Summable a := Summable.of_nonneg_of_le h_nonneg_a h_le h_sum_b'
-    exact h_sum_a
 
 /-
   The contribution to the series can be divided into each `P r`, that is
@@ -855,6 +511,7 @@ lemma divideContribution_into_r :
       have h_inPr : p.Prime ∧ p > 2 ∧ (p ∉ W) ∧ (ord2 p = r) :=
         ⟨hp_prime, hp_gt_2, hp_notin_W, h_ord_eq⟩
       exact h_inPr
+
     · intro h
       cases h with
       | intro r hr
@@ -869,14 +526,14 @@ lemma divideContribution_into_r :
     rw [Set.disjoint_left]
     intro p hp1 hp2
     -- ord2 p = r1 and ord2 p = r2
-    have h1 : ∀ (q : ℕ), q ∈ P r1 ↔ q.Prime ∧ q > 2 ∧ (q ∉ W) ∧ (ord2 q = r1) := by
+    have h1 : ∀ (q : ℕ), q ∈ P r1 ↔ (q ∉ W) ∧ (ord2 q = r1) ∧ q.Prime ∧ q > 2 := by
       intro q
       simp [P]
-    have h2 : ∀ (q : ℕ), q ∈ P r2 ↔ q.Prime ∧ q > 2 ∧ (q ∉ W) ∧ (ord2 q = r2) := by
+    have h2 : ∀ (q : ℕ), q ∈ P r2 ↔ (q ∉ W) ∧ (ord2 q = r2) ∧ q.Prime ∧ q > 2 := by
       intro q
       simp [P]
-    have eq1 : ord2 p = r1 := (h1 p).mp hp1 |>.2.2.2
-    have eq2 : ord2 p = r2 := (h2 p).mp hp2 |>.2.2.2
+    have eq1 : ord2 p = r1 := (h1 p).mp hp1 |>.2.1
+    have eq2 : ord2 p = r2 := (h2 p).mp hp2 |>.2.1
     rw [eq1] at eq2
     exact hne eq2
 -- we use indicator to put every sum in N to avoid type dismatch
@@ -896,35 +553,9 @@ lemma divideContribution_into_r :
       simpa [Set.indicator] using tsum_subtype s g
     exact h_tsum_subtype (P r) f
   -- now by h1 we have proven that two sets are equal hence there sum are equal
-  have h_fun_eq : ∀ p, Set.indicator (⋃ (r : ℕ), P r) f p =
-  ∑' (r : ℕ), Set.indicator (P r) f p := by
-    intro p
-    by_cases hp : p ∈ ⋃ (r : ℕ), P r
-    · have h_ind : Set.indicator (⋃ (r : ℕ), P r) f p = f p := by simp [Set.indicator, hp]
-      rw [h_ind]
-      simp only [Set.mem_iUnion] at hp
-      rcases hp with ⟨r0, hr0⟩
-      have h_single : (∑' (r : ℕ), Set.indicator (P r) f p) = Set.indicator (P r0) f p := by
-        apply tsum_eq_single r0
-        intro r hr
-        have h_notin : p ∉ P r := by
-          intro h_pr
-          exact Set.disjoint_left.mp (h_disj hr) h_pr hr0
-        simp [Set.indicator, h_notin]
-      rw [h_single]
-      simp [Set.indicator, hr0]
-    · have h_ind : Set.indicator (⋃ (r : ℕ), P r) f p = 0 := by simp [Set.indicator, hp]
-      rw [h_ind]
-      have h_zero : (∑' (r : ℕ), Set.indicator (P r) f p) = 0 := by
-        have h_all_zero : ∀ r, Set.indicator (P r) f p = 0 := by
-          intro r
-          have h_notin : p ∉ P r := by
-            intro h_pr
-            apply hp
-            exact Set.mem_iUnion.mpr ⟨r, h_pr⟩
-          simp [Set.indicator, h_notin]
-        simp only [h_all_zero, tsum_zero]
-      exact h_zero.symm
+  have h_fun_eq : Set.indicator (⋃ (r : ℕ), P r) f = ∑' (r : ℕ), Set.indicator (P r) f := by
+    funext p
+    apply?
   -- we simplify those sums to the final sums to the final goal
   have h_main1 : (∑' (p : ℕ), Set.indicator {p : ℕ | p.Prime ∧ p > 2 ∧ p ∉ W} f p) =
   ∑' (p : ℕ), Set.indicator (⋃ (r : ℕ), P r) f p := by
@@ -936,188 +567,98 @@ lemma divideContribution_into_r :
     exact (h_right r).symm
   have h_step1 : (∑' (p : ℕ), (Set.indicator (⋃ (r : ℕ), P r) f) p) =
     ∑' (p : ℕ), (∑' (r : ℕ), Set.indicator (P r) f p) := by
-    congr 1
+    congr
     funext p
-    exact h_fun_eq p
-  -- change the index order doesn't matter
+    apply?
   have h_main2 : (∑' (p : ℕ), (∑' (r : ℕ), Set.indicator (P r) f p)) =
     ∑' (r : ℕ), ∑' (p : ℕ), Set.indicator (P r) f p := by
-      have h_sum_indicator_r : Summable (fun r ↦ ∑' (p : ℕ), Set.indicator (P r) f p) := by
-        have heq : (fun r ↦ ∑' (p : ℕ), Set.indicator (P r) f p) =
-               (fun r ↦ ∑' (p : {p // p ∈ P r}), f p) := by
-          ext r
-          exact (h_right r).symm
-        rw [heq]
-        exact Summable_Ar
-      apply Summable.tsum_comm
-      have h_nonneg_rp : ∀ (rp : ℕ × ℕ), 0 ≤ Set.indicator (P rp.1) f rp.2 := by
-        rintro ⟨r, p⟩
-        simp only [f, Set.indicator]
-        split_ifs <;> positivity
-      have h_inner_summable : ∀ (r : ℕ), Summable (fun p ↦ Set.indicator (P r) f p) := by
-        intro r
-        have h_sub : {p : ℕ | Set.indicator (P r) f p ≠ 0} ⊆ P r := by
-          intro p hp
-          by_contra h_not_in
-          have h_zero : Set.indicator (P r) f p = 0 := Set.indicator_of_notMem h_not_in f
-          exact hp h_zero
-        have h_Pr_fin : (P r).Finite := by
-          by_cases h0 : r = 0
-          · rw [h0, h_P_0_empty]
-            exact Set.finite_empty
-          by_cases h1 : r = 1
-          · rw [h1, h_P_1_empty]
-            exact Set.finite_empty
-          · have h_gt1 : r > 1 := by omega
-            have hr_ge : r ≥ 1 := by omega
-            exact P_r_is_finite r hr_ge
-        apply
-        summable_of_ne_finset_zero (s := h_Pr_fin.toFinset) (f := fun p ↦ Set.indicator (P r) f p)
-        intro b hb
-        have h_not_in : b ∉ P r := by simpa using hb
-        exact Set.indicator_of_notMem h_not_in f
-      exact (summable_prod_of_nonneg h_nonneg_rp).mpr ⟨h_inner_summable, h_sum_indicator_r⟩
+    apply?
   rw [h_left, h_main1, h_step1, h_main2, h_main3]
 
 
--- the sum = sum of Ar , Ar Summable then the sum summalbe
-theorem ReciprocalOrderSeries_of_nonW_primes_converges :
-  Summable ( fun (p : {p // p.Prime ∧ p > 2 ∧ p ∉ W}) => (1 : ℝ) / (ord2 (p^2)) ) := by
-  -- for convinient:
-    let f := fun (p : ℕ) ↦ (1 : ℝ) / (ord2 (p ^ 2))
-  -- Summable (fun p ↦ Set.indicator {p | p.Prime ∧ p > 2 ∧ p ∉ W} f p)
-    apply (summable_subtype_iff_indicator (s := {p : ℕ | p.Prime ∧ p > 2 ∧ p ∉ W}) (f := f)).mpr
-    have h1 : {p : ℕ | p.Prime ∧ p > 2 ∧ p ∉ W} = ⋃ r, P r := by
-      ext p
-      -- p ∧ p > 2 ∧ p ∉ W  iff  ∃ r, p ∈ P r
-      simp only [gt_iff_lt, Set.mem_setOf_eq, Set.mem_iUnion]
-      constructor
-      · intro h
-        have hp_notin_W : p ∉ W := h.right.right
-        have hp_prime : p.Prime := h.1
-        have hp_gt_2 : p > 2 := h.2.1
-        let r : ℕ := ord2 p
-        have h_ord_eq : ord2 p = r := by rfl
-        use r
-        have h_inPr : p.Prime ∧ p > 2 ∧ (p ∉ W) ∧ (ord2 p = r) :=
-          ⟨hp_prime, hp_gt_2, hp_notin_W, h_ord_eq⟩
-        exact h_inPr
-      · intro h
-        cases h with
-        | intro r hr
-        have h_p_notin_W : p ∉ W := hr.2.2.1
-        have h_p_prime : p.Prime := hr.1
-        have h_p_gt_2 : p > 2 := hr.2.1
-        have h_main : p.Prime ∧ p > 2 ∧ p ∉ W := ⟨h_p_prime, h_p_gt_2, h_p_notin_W⟩
-        exact h_main
-    simp_rw [h1]
-    -- util now Summable ((⋃ r, P r).indicator f)
-    -- previous little lemma1
-    have h_disj :  Pairwise (fun (r1 r2 : ℕ) ↦ Disjoint (P r1) (P r2)) := by
-      intro r1 r2 hne
-      rw [Set.disjoint_left]
-      intro p hp1 hp2
-      -- ord2 p = r1 and ord2 p = r2
-      have h1 : ∀ (q : ℕ), q ∈ P r1 ↔ q.Prime ∧ q > 2 ∧ (q ∉ W) ∧ (ord2 q = r1) := by
-        intro q
-        simp [P]
-      have h2 : ∀ (q : ℕ), q ∈ P r2 ↔ q.Prime ∧ q > 2 ∧ (q ∉ W) ∧ (ord2 q = r2) := by
-        intro q
-        simp [P]
-      have eq1 : ord2 p = r1 := (h1 p).mp hp1 |>.2.2.2
-      have eq2 : ord2 p = r2 := (h2 p).mp hp2 |>.2.2.2
-      rw [eq1] at eq2
-      exact hne eq2
-    -- previous little lemma2
-    have h_fun_eq : ∀ p, Set.indicator (⋃ r, P r) f p = ∑' r, Set.indicator (P r) f p := by
-      intro p
-      by_cases hp : p ∈ ⋃ (r : ℕ), P r
-      · have h_ind : Set.indicator (⋃ (r : ℕ), P r) f p = f p := by simp [Set.indicator, hp]
-        rw [h_ind]
-        simp only [Set.mem_iUnion] at hp
-        rcases hp with ⟨r0, hr0⟩
-        have h_single : (∑' (r : ℕ), Set.indicator (P r) f p) = Set.indicator (P r0) f p := by
-          apply tsum_eq_single r0
-          intro r hr
-          have h_notin : p ∉ P r := by
-            intro h_pr
-            exact Set.disjoint_left.mp (h_disj hr) h_pr hr0
-          simp [Set.indicator, h_notin]
-        rw [h_single]
-        simp [Set.indicator, hr0]
-      · have h_ind : Set.indicator (⋃ (r : ℕ), P r) f p = 0 := by simp [Set.indicator, hp]
-        rw [h_ind]
-        have h_zero : (∑' (r : ℕ), Set.indicator (P r) f p) = 0 := by
-          have h_all_zero : ∀ r, Set.indicator (P r) f p = 0 := by
-            intro r
-            have h_notin : p ∉ P r := by
-              intro h_pr
-              apply hp
-              exact Set.mem_iUnion.mpr ⟨r, h_pr⟩
-            simp [Set.indicator, h_notin]
-          simp only [h_all_zero, tsum_zero]
-        exact h_zero.symm
-    -- every points are equal then the function is the same
-    have h_fun_eq_ext : (⋃ r, P r).indicator f = fun p ↦ ∑' (r : ℕ), Set.indicator (P r) f p := by
-      ext p
-      exact h_fun_eq p
-    rw [h_fun_eq_ext]
-    -- until now Summable fun p ↦ ∑' (r : ℕ), (P r).indicator f p
-    have h_nonneg_rp : ∀ (rp : ℕ × ℕ), 0 ≤ Set.indicator (P rp.1) f rp.2 := by
-      rintro ⟨r, p⟩; simp only [f, Set.indicator]; split_ifs <;> positivity
-    -- previous lemma 3,4
-    have h_right : ∀ (r : ℕ), (∑' (p : {p // p ∈ P r}), f (p : ℕ)) =
-  ∑' (p : ℕ), Set.indicator (P r) f p := by
-      intro r
-      have h_tsum_subtype : ∀ (s : Set ℕ) (g : ℕ → ℝ), (∑' (x : {x // x ∈ s}), g (x : ℕ)) =
-      ∑' (x : ℕ), Set.indicator s g x := by
-        intro s g
-        simpa [Set.indicator] using tsum_subtype s g
-      exact h_tsum_subtype (P r) f
-    -- sum indicator
-    have h_sum_indicator_r : Summable (fun r ↦ ∑' (p : ℕ), Set.indicator (P r) f p) := by
-      have heq : (fun r ↦ ∑' (p : ℕ), Set.indicator (P r) f p) =
-             (fun r ↦ ∑' (p : {p // p ∈ P r}), f p) := by
-        ext r
-        exact (h_right r).symm
-      rw [heq]
-      exact Summable_Ar
-    have h_nonneg_rp : ∀ (rp : ℕ × ℕ), 0 ≤ Set.indicator (P rp.1) f rp.2 := by
-      rintro ⟨r, p⟩
-      simp only [f, Set.indicator]
-      split_ifs <;> positivity
-    have h_inner_summable : ∀ (r : ℕ), Summable (fun p ↦ Set.indicator (P r) f p) := by
-      intro r
-      have h_sub : {p : ℕ | Set.indicator (P r) f p ≠ 0} ⊆ P r := by
-        intro p hp
-        by_contra h_not_in
-        have h_zero : Set.indicator (P r) f p = 0 := Set.indicator_of_notMem h_not_in f
-        exact hp h_zero
-      have h_Pr_fin : (P r).Finite := by
-        by_cases h0 : r = 0
-        · rw [h0, h_P_0_empty]
-          exact Set.finite_empty
-        by_cases h1 : r = 1
-        · rw [h1, h_P_1_empty]
-          exact Set.finite_empty
-        · have h_gt1 : r > 1 := by omega
-          have hr_ge : r ≥ 1 := by omega
-          exact P_r_is_finite r hr_ge
-      apply
-      summable_of_ne_finset_zero (s := h_Pr_fin.toFinset) (f := fun p ↦ Set.indicator (P r) f p)
-      intro b hb
-      have h_not_in : b ∉ P r := by simpa using hb
-      exact Set.indicator_of_notMem h_not_in f
-    -- we goes to the final result
-    have h_sum_prod : Summable (fun (rp : ℕ × ℕ) ↦ Set.indicator (P rp.1) f rp.2) :=
-      (summable_prod_of_nonneg h_nonneg_rp).mpr ⟨h_inner_summable, h_sum_indicator_r⟩
-    have h_swap : Summable (fun (pr : ℕ × ℕ) ↦ Set.indicator (P pr.2) f pr.1) := by
-      have heq : (fun (pr : ℕ × ℕ) ↦ Set.indicator (P pr.2) f pr.1) =
-               (fun (rp : ℕ × ℕ) ↦ Set.indicator (P rp.1) f rp.2) ∘ (Equiv.prodComm ℕ ℕ) := by
-        ext ⟨p, r⟩
-        rfl
-      rw [heq]
-      exact (Equiv.summable_iff (Equiv.prodComm ℕ ℕ)).mpr h_sum_prod
-    have h_nonneg_pr : ∀ (pr : ℕ × ℕ), 0 ≤ Set.indicator (P pr.2) f pr.1 := by
-      rintro ⟨p, r⟩; simp only [f, Set.indicator]; split_ifs <;> positivity
-    exact ((summable_prod_of_nonneg h_nonneg_pr).mp h_swap).2
+-- The n-th harmonic number
+def H (n : ℕ) : ℚ :=
+  ∑ i ∈ Finset.range n, (1 / (i + 1) : ℚ)
+
+/-
+  For each contribution, we have
+    `∑_{p ∈ P r} {1 / ord2 (p^2)} = ∑_{p ∈ P r} {1 / pr} ≤ ∑ {1 / (jr+1)r}`
+  using the __lowerBound_of_p_in_P_r__.
+  Ignoring the 1, we get `∑_{p ∈ P r} {1 / ord2 (p^2)} ≤ 1/r² H m`.
+  Then, apply __upperBound_of_m_by_r__, we get
+    `∑_{p ∈ P r} {1 / ord2 (p^2)} ≤ 1/r² H ⌊{r · log 2}/{log r}⌋`.
+-/
+lemma upperBound_of_each_contribution (r : ℕ) (hr : r > 1) (h_Pfin : (P r).Finite) :
+    ∑ p ∈ h_Pfin.toFinset, (1 : ℝ) / (ord2 (p^2))
+    ≤ (1 : ℝ)/(r^2) * H (Nat.floor ((r * Real.log 2)/(Real.log r))) := by
+  let s := h_Pfin.toFinset
+  let L := P_list r h_Pfin
+  have hL_toFinset : L.toFinset = s := by
+    simp [L, P_list, s]
+  have hL_nodup : L.Nodup := by apply?  -- every elem in P r is different
+  -- H is strictly increasing
+  have h_H_mono : ∀ (m n : ℕ), m ≤ n → (H m : ℝ) ≤ (H n : ℝ) := by
+    intro m n hmn
+    have h₁ : Finset.range m ⊆ Finset.range n := Finset.range_subset_range.mpr hmn
+    have h₂ : ∀ i ∈ Finset.range n, (i ∉ Finset.range m) → 0 ≤ (1 : ℝ) / ((i : ℝ) + 1) := by
+      intro i _ _
+      have h_pos : (0 : ℝ) < (i : ℝ) + 1 := by positivity
+      exact one_div_nonneg.mpr (by linarith)
+    simpa [H] using Finset.sum_le_sum_of_subset_of_nonneg h₁ h₂
+  -- 1/ord2(p^2) = 1/(p*r)
+  have h_main₁ : ∀ p ∈ s, (1 : ℝ) / (ord2 (p^2)) = (1 : ℝ) / ((p : ℝ) * (r : ℝ)) := by
+    intro p hp
+    have h_p_in_Pr : p ∈ P r := by exact (Set.Finite.mem_toFinset h_Pfin).mp hp
+    have h_notW : p ∉ W := h_p_in_Pr.1
+    have h_ord_eq : ord2 p = r := h_p_in_Pr.2.1
+    have h_prime : p.Prime := h_p_in_Pr.2.2.1
+    have h_gt2 : p > 2 := h_p_in_Pr.2.2.2
+    have h_ord2_p2_eq : ord2 (p^2) = p * ord2 p := nonW_primes_ord2_relation ⟨h_prime, h_gt2⟩ h_notW
+    have h_ord2_p2_eq' : ord2 (p^2) = p * r := by
+      rw [h_ord2_p2_eq, h_ord_eq]
+    have h_cast_mul : ((p * r : ℕ) : ℝ) = (p : ℝ) * (r : ℝ) := by exact Nat.cast_mul p r
+    have h_final : (1 : ℝ) / (ord2 (p^2) : ℝ) = (1 : ℝ) / ((p : ℝ) * (r : ℝ)) := by
+      have h₁ : (ord2 (p^2) : ℝ) = ((p * r : ℕ) : ℝ) := by
+        exact_mod_cast h_ord2_p2_eq'
+      rw [h₁, h_cast_mul]
+    exact h_final
+  -- simplify
+  have h_main₂ : ∑ p ∈ s, (1 : ℝ) / (ord2 (p^2)) = ∑ p ∈ s, (1 : ℝ) / ((p : ℝ) * (r : ℝ)) := by
+    apply Finset.sum_congr rfl
+    intro p hp
+    exact h_main₁ p hp
+  -- the sum of the set is the sum of the list
+  have h_main₃₁ : ∑ p ∈ s, (1 : ℝ) / ((p : ℝ) * (r : ℝ)) = (L.map (fun p ↦ (1 : ℝ) / ((p : ℝ) * (r : ℝ)))).sum := by
+    have h₁ : L.toFinset = s := hL_toFinset
+    have h₂ : L.Nodup := hL_nodup
+    rw [← h₁]
+    apply?
+  -- since pj ≥ (j+1) * r,  then 1/(pj * r) ≤ 1/((j+1)*r) * r
+  have h_main₃₂ : ∀ (l : List ℕ) (j : ℕ) (hj : j < l.length),
+    (1 : ℝ) / (((L[j]' (Finset.mem_range.mp ‹j ∈ Finset.range L.length›)) : ℝ) * (r : ℝ)) ≤ (1 : ℝ) / ((( (j + 1 : ℕ) : ℝ) * (r : ℝ)) * (r : ℝ)) := by
+    intro j hj
+    have h_j_lt : j < L.length := Finset.mem_range.mp hj
+    have h_lb : L[j] ≥ (j + 1) * r + 1 := lowerBound_of_p_in_P_r r (by linarith) h_Pfin j h_j_lt
+    have h_pos1 : (0 : ℝ) < ((L[j] : ℝ) * (r : ℝ)) := by positivity
+    have h_pos2 : (0 : ℝ) < ((( (j + 1 : ℕ) : ℝ) * (r : ℝ)) * (r : ℝ)) := by positivity
+    have h_ineq1 : ((L[j] : ℝ) * (r : ℝ)) ≥ ((( (j + 1 : ℕ) : ℝ) * (r : ℝ)) * (r : ℝ)) := by
+      have h₁ : (L[j] : ℝ) ≥ (((j + 1 : ℕ) : ℝ) * (r : ℝ) + 1) := by exact_mod_cast h_lb
+      have h₂ : (L[j] : ℝ) ≥ (((j + 1 : ℕ) : ℝ) * (r : ℝ)) := by linarith
+      have h₃ : ((L[j] : ℝ) * (r : ℝ)) ≥ ((( (j + 1 : ℕ) : ℝ) * (r : ℝ)) * (r : ℝ)) := by
+        have h₄ : (r : ℝ) > 0 := by exact_mod_cast hr
+        nlinarith
+      exact h₃
+
+/-
+  Now, using __divideContribution_into_r__, we have that
+    `∑_{p ∉ W} {1 / ord2 (p^2)} ≤ ∑ {1/r² H ⌊{r · log 2}/{log r}⌋}`.
+-/
+lemma upperBound_integrate_all_contributions :
+    ∑' (p : {p // p.Prime ∧ p > 2 ∧ p ∉ W}), (1 : ℝ) / (ord2 (p ^ 2))
+    ≤ ∑' (r : ℕ), (1 : ℝ)/(r^2) * H (Nat.floor ((r * Real.log 2)/(Real.log r))) := by
+  sorry
+
+
+-- theorem ReciprocalOrderSeries_of_nonW_primes_converges :
+--     Summable ( fun (p : {p // p.Prime ∧ p > 2 ∧ p ∉ W}) => (1 : ℝ) / (ord2 (p^2)) ) := by
+--   sorry
